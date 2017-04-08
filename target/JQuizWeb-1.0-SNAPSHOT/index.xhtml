@@ -1,0 +1,162 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:h="http://java.sun.com/jsf/html"
+      xmlns:f="http://java.sun.com/jsf/core"
+      xmlns:ui="http://java.sun.com/jsf/facelets"
+      xmlns:p="http://primefaces.org/ui"
+      xmlns:pe="http://primefaces.org/ui/extensions">
+    <h:head>
+        <title>JQuiz Java Web</title>
+        
+        <!-- Compiled and minified CSS -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.1/css/materialize.min.css" />
+        <!--Import jQuery before materialize.js-->
+        <script type="text/javascript" src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+        <!-- Compiled and minified JavaScript -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.98.1/js/materialize.min.js"></script>
+        
+        <h:outputStylesheet library="css" name="sweetalert.css" />
+        
+        <h:outputScript library="js" name="sweetalert.min.js" />
+
+    </h:head>
+    <h:body styleClass="blue lighten-5">
+        
+        <!--Remote command zone-->
+        <h:form id="formActions">
+            <pe:remoteCommand name="select" actionListener="#{quizBean.select}">
+                <pe:methodSignature parameters="java.lang.String, java.lang.String" />
+                <pe:methodParam name="item" />
+                <pe:methodParam name="optionSelected" />
+            </pe:remoteCommand>
+            
+            <pe:remoteCommand name="hasTime" actionListener="#{quizBean.checkTime}" />
+            <pe:remoteCommand name="stopQuiz" actionListener="#{quizBean.stopQuiz}" />
+            <pe:remoteCommand name="finish" actionListener="#{quizBean.finish()}" />
+        </h:form>
+        
+        <h:form id="formQuiz">
+            <div class="row">
+                <div class="col s6 offset-s3">
+                    <div class="card">
+                        <ui:fragment id="initView" rendered="#{quizBean.step eq 'init'}">
+                            <div class="card-content">
+                                <div class="card-title center-align">
+                                    Simple Quiz for Java web
+                                </div>
+                                <hr style="border:none; background-color: #CCC; height: 1px;" />
+                                <p>
+                                    You must answer the questions before the time finish.
+                                    You have #{quizBean.totalTime} minutes to response and you need 
+                                    <b>#{quizBean.numberOfCorrects}</b> correct answers to pass. 
+                                    Choose one of the question listed and continue till end.
+                                </p>
+                                <br />
+                                <p>Good luck!</p>
+                            </div>
+                            <div class="card-action">
+                                <p:commandLink id="start" partialSubmit="true" process="@this" 
+                                               actionListener="#{quizBean.beginQuiz()}" 
+                                               value="Start!" styleClass="blue-text" />
+                            </div>
+                        </ui:fragment>
+                        <ui:fragment id="runningView" rendered="#{quizBean.step eq 'running'}">
+                            <ui:repeat id="repeatItems" value="#{quizBean.quiz.items}" var="item"
+                                       varStatus="status">
+                                <ui:fragment id="questionView" rendered="#{status.index eq quizBean.itemNumber}">
+                                    <div class="card-content">
+                                        <div class="card-title">
+                                            #{status.index + 1}) #{item.leyend}
+                                        </div>
+                                        <div class="row">
+                                            <ui:repeat id="repeatChoice" value="#{item.options}" var="option" varStatus="optionStatus">
+                                                <div class="col s12">
+                                                    
+                                                    <input checked="#{quizBean.isSelected(status.index,quizBean.itemNumber, optionStatus.index)}" value="#{quizBean.isSelected(status.index,quizBean.itemNumber, optionStatus.index)}" name="group1" type="radio" id="test#{status.index}-#{quizBean.itemNumber}-#{optionStatus.index}" />
+                                                    <label id="label-#{quizBean.itemNumber}-#{optionStatus.index}" onclick="select('#{quizBean.itemNumber}','#{optionStatus.index}')" for="test#{status.index}-#{quizBean.itemNumber}-#{optionStatus.index}">#{option.option}</label>
+                                                </div>
+                                                
+                                            </ui:repeat>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="card-action">
+                                        <p:commandLink rendered="#{status.index > 0}"
+                                                       
+                                                       actionListener="#{quizBean.backQuestion()}" 
+                                                       value="Back" styleClass="blue-text" />
+                                        <p:commandLink rendered="#{status.index lt quizBean.quiz.items.size() - 1}" 
+
+                                                       actionListener="#{quizBean.nextQuestion()}" 
+                                                       value="Next" styleClass="blue-text" />
+                                        <p:commandLink rendered="#{status.index le quizBean.quiz.items.size() - 1}" 
+                                                       value="Finish" styleClass="blue-text" 
+                                                       actionListener="#{quizBean.askFinish()}" >
+                                        </p:commandLink>
+                                        
+                                        <span class="badge blue-text">
+                                            <h:panelGroup id="pollRemain" layout="block">
+                                                <p:poll id="pollControl" interval="1" listener="#{quizBean.checkTime()}" autoStart="true" update=":formQuiz:repeatItems:0:pollRemain">
+                                                    #{quizBean.remainTime()} to finish
+                                                </p:poll>
+                                            </h:panelGroup>
+                                        </span>
+                                    </div>
+                                </ui:fragment>
+                            </ui:repeat>
+                        </ui:fragment>
+                        <ui:fragment id="stopView" rendered="#{quizBean.step eq 'stop'}">
+                            <div class="card-content">
+                                <div class="card-title center-align">
+                                    Quiz results
+                                </div>
+                                <hr style="border:none; background-color: #CCC; height: 1px;" />
+                                
+                                <ui:fragment rendered="#{quizBean.quiz.score() gt 0.65}">
+                                    <div class="progress">
+                                        <div class="determinate" style="width: #{quizBean.quiz.score() * 100}%"></div>
+                                    </div>
+                                </ui:fragment>
+                                
+                                <ui:fragment rendered="#{quizBean.quiz.score() le 0.65}">
+                                    <div class="progress">
+                                        <div class="determinate red" style="width: #{quizBean.quiz.score() * 100}%"></div>
+                                    </div>
+                                </ui:fragment>
+                                
+                                <p>
+                                    Your score for this Quiz was <b>#{quizBean.quiz.score() * 100}%</b>. 
+                                    <ui:fragment rendered="#{quizBean.quiz.score() ge 0.65}">
+                                        Congratulations! you are great.
+                                    </ui:fragment>
+                                    <ui:fragment rendered="#{quizBean.quiz.score() le 0.65}">
+                                        Sorry, you must be better next time.
+                                    </ui:fragment> Please check your results. 
+                                </p>
+                                <br />
+        
+                                <p:dataTable value="#{quizBean.quiz.items}"
+                                             var="question"
+                                             >
+                                    <p:column headerText="Question">
+                                        #{question.leyend}
+                                    </p:column>
+                                    <p:column headerText="Your choice">
+                                        #{question.indexOfUserChoice + 1}
+                                    </p:column>
+                                    <p:column headerText="Correct">
+                                        <h:outputText rendered="#{question.indexAnswer eq question.indexOfUserChoice}" value="Yes" />
+                                        <h:outputText rendered="#{not (question.indexAnswer eq question.indexOfUserChoice)}" value="No" />
+                                    </p:column>
+                                </p:dataTable>
+                                <br />
+                                <p:commandLink styleClass="btn waves-effect waves-light btn" value="Try again" actionListener="#{quizBean.beginQuiz()}" />
+                            </div>
+                        </ui:fragment>
+                    </div>
+                </div>
+            </div>
+        </h:form>
+    </h:body>
+</html>
+
